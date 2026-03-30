@@ -51,7 +51,7 @@ If you prepared your library using Oxford Nanopore direct RNA-seq (dRNA-seq), ty
 LoRTIA --dRNA --check_in_soft 6 -3 AAAA --three_score 6 -s poisson -f True /path/to/alignments.sam /path/to/output_folder /path/to/reference.fasta
 
 
-For more details, read the [Wiki].
+
 
 ## <a name="credits"></a>Credits
 The LoRTIA toolkit is developed by [Zsolt Balázs]. Discussions and earlier work with Attila Szűcs (University of Szeged) contributed a lot of ideas to the implementation the toolkit. The early code was commented on by Tibor Nagy (University of Debrecen). Special thanks to the Department of Medical Biology at the University of Szeged for the early testing feedbacks.
