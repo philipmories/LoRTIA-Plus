@@ -1,7 +1,21 @@
 # LoRTIA-Plus - Long-read RNA-Seq Transcript Isoform Annotator toolkit
 
 
-The LoRTIA toolkit annotates transcript features such as transcriptional start sites (TSS), transcriptional end sites (TES), introns and transcript isoforms based on long-read RNA sequencing (direct RNA-Seq and cDNA-Seq) data. The toolkit expects `SAM` or `BAM` files as input and produces `GFF` files as well as other processed files as outputs. The sequencing reads can stem from any long-read sequencing platform (both Nanopore and PacBio reads are accepted). As long as the reads contain adapters which mark the two ends of the full-length transcripts, a complete isoform annotation is possible. The `SAM` or `BAM` files can be produced by any mapper, however when mapping with [minimap2], either run minimap2 with the `-Y` option or filter out secondary alignments before using the LoRTIA toolkit. The toolkit was developed to be run in UNIX environments.
+LoRTIA-Plus is an extended version of the original LoRTIA toolkit for the annotation of transcript features such as transcription start sites (TSS), transcription end sites (TES), introns, and transcript isoforms from long-read RNA sequencing data. The toolkit expects `SAM` or `BAM` files as input and produces `GFF` files as well as other processed files as outputs. The sequencing reads can stem from any long-read sequencing platform, including Oxford Nanopore and PacBio. As long as the reads contain features that allow reliable identification of transcript ends, complete isoform annotation is possible.
+
+`SAM` or `BAM` files can be produced by any mapper. However, when mapping with [minimap2], either run minimap2 with the `-Y` option or filter out secondary alignments before using LoRTIA-Plus. The toolkit was developed to run in UNIX environments.
+
+## Project history
+
+LoRTIA-Plus is based on the original LoRTIA toolkit developed by [Zsolt Balázs]. This repository was created to maintain and distribute an extended version of the software, including direct RNA-seq support and transcript annotation performance improvements.
+
+## What is new in LoRTIA-Plus
+
+Compared with the original LoRTIA release, LoRTIA-Plus includes:
+
+- support for Oxford Nanopore direct RNA-seq data via `--dRNA`
+- faster transcript annotation through `polars`-based processing
+- updated repository structure and documentation
 
 ## Contents
 
@@ -9,55 +23,92 @@ The LoRTIA toolkit annotates transcript features such as transcriptional start s
 - [Dependencies](#dependencies)
 - [Usage](#usage)
 - [Credits](#credits)
+- [Citation](#citation)
 
 ## <a name="installation"></a>Installation
-Clone the repository.
+
+Clone the repository:
+
 ```sh
 git clone https://github.com/philipmories/LoRTIA-Plus
 cd LoRTIA-Plus
 chmod 755 LoRTIA
 ```
-Make sure you have all the dependencies and you will be able to run the program.
+
+Make sure all dependencies are installed and available in your `PATH`.
 
 ## <a name="dependencies"></a>Dependencies
-- [bedtools] (tested v. 2.28) Make sure that `bedtools` is added to your `PATH` and can be run by the `bedtools` command!
+
+- [samtools] (required for sorting, indexing, and coverage calculation; make sure that `samtools` is available in your `PATH`)
+- [bedtools] (tested v. 2.28; make sure that `bedtools` is available in your `PATH`)
 - [pandas] (tested v. 0.24.0 and up)
 - [polars]
 - [Biopython] (tested Release 1.73)
 - [pysam] (tested v. 0.15.0)
 - [scipy] (tested v. 1.2.2)
 
-If you have your dependencies installed, and also added LoRTIA to your `PATH`, then typing `LoRTIA -h` should show you the help menu.
+If the dependencies are installed and LoRTIA is available in your `PATH`, typing `LoRTIA -h` should show the help menu.
 
 ## <a name="usage"></a>Usage
-The following examples will show how to determine isoforms from an `alignments.sam` file that was mapped to `reference.fasta`. The annotations and other processed files will be generated in the `output_folder` with the prefix of the `SAM` file.
-When running the LoRTIA pipeline, you have to specify the types of adapters that you used during your library preparation.
-The [Lexogen Telo Prime cap selection kit], is the default adapter set of the pipeline. If your sample was prepared with this kit, simply type the following command: 
+
+The following examples show how to determine isoforms from an `alignments.sam` file mapped to `reference.fasta`. The annotations and other processed files will be generated in `output_folder` using the prefix of the input `SAM` file.
+
+When running the LoRTIA pipeline, you have to specify the adapter configuration used during library preparation.
+
+The [Lexogen Telo Prime cap selection kit] is the default adapter set of the pipeline. If your sample was prepared with this kit, type:
+
 ```sh
 LoRTIA -s poisson -f True /path/to/alignments.sam /path/to/output_folder /path/to/reference.fasta
 ```
-If you prepared your library using the [PacBio Isoseq], type the following command: 
+
+If your library was prepared using [PacBio Isoseq], type:
+
 ```sh
 LoRTIA -5 AGAGTACATGGG --five_score 16 --check_in_soft 15 -3 AAAAAAAAAAAAAAA --three_score 18 -s poisson -f True /path/to/alignments.sam /path/to/output_folder /path/to/reference.fasta
 ```
-If you prepared your library using standard [Nanopore cDNA-Seq adapters], type the following command: 
+
+If your library was prepared using standard [Nanopore cDNA-Seq adapters], type:
+
 ```sh
 LoRTIA -5 TGCCATTAGGCCGGG --five_score 16 --check_in_soft 15 -3 AAAAAAAAAAAAAAA --three_score 16 -s poisson -f True /path/to/alignments.sam /path/to/output_folder /path/to/reference.fasta
 ```
-If you prepared your library using Oxford Nanopore direct RNA-seq (dRNA-seq), type the following command:
+
+If your library was prepared using Oxford Nanopore direct RNA-seq (dRNA-seq), type:
+
 ```sh
 LoRTIA --dRNA --check_in_soft 6 -3 AAAA --three_score 6 -s poisson -f True /path/to/alignments.sam /path/to/output_folder /path/to/reference.fasta
 ```
-If you prepared your library with a different set of adapters, you will have to specify those when running the program.
 
+In `--dRNA` mode, LoRTIA-Plus does not perform 5′ adapter detection. Instead, it uses mapper-derived strand information, marks the true 5′ end as accepted, and performs 3′ end quality control only on the true 3′ end. This mode is recommended for Oxford Nanopore direct RNA-seq libraries.
 
+If your library uses a different adapter design, specify the appropriate adapter sequences and score thresholds manually when running the program.
+
+For more details, see the [Wiki].
 
 ## <a name="credits"></a>Credits
-The LoRTIA toolkit is developed by [Zsolt Balázs]. Discussions and earlier work with Attila Szűcs (University of Szeged) contributed a lot of ideas to the implementation the toolkit. The early code was commented on by Tibor Nagy (University of Debrecen). Special thanks to the Department of Medical Biology at the University of Szeged for the early testing feedbacks.
+
+The original LoRTIA toolkit was developed by [Zsolt Balázs].
+
+LoRTIA-Plus extends the original toolkit with additional functionality, including:
+
+- support for direct RNA-seq data
+- transcript annotation speedups using `polars`
+- updated documentation and repository maintenance
+
+Discussions and earlier work with Attila Szűcs (University of Szeged) contributed substantially to the development of the original toolkit. The early code was commented on by Tibor Nagy (University of Debrecen). Special thanks to the Department of Medical Biology at the University of Szeged for early testing and feedback.
+
+## <a name="citation"></a>Citation
+
+If you use LoRTIA-Plus in your work, please cite:
+
+- the original LoRTIA publication and/or repository
+- the LoRTIA-Plus publication, when available
 
 [minimap2]: https://github.com/lh3/minimap2
+[samtools]: https://www.htslib.org/
 [bedtools]: https://bedtools.readthedocs.io/en/latest/content/installation.html
 [pandas]: https://pandas.pydata.org/pandas-docs/stable/install.html
+[polars]: https://pola.rs/
 [Biopython]: http://biopython.org/DIST/docs/install/Installation.html
 [pysam]: https://pysam.readthedocs.io/en/latest/installation.html
 [scipy]: https://www.scipy.org/install.html
@@ -66,4 +117,3 @@ The LoRTIA toolkit is developed by [Zsolt Balázs]. Discussions and earlier work
 [Nanopore cDNA-Seq adapters]: https://nanoporetech.com/resource-centre/guide-cdna-sequencing-oxford-nanopore
 [Wiki]: https://github.com/zsolt-balazs/LoRTIA/wiki
 [Zsolt Balázs]: https://github.com/zsolt-balazs/
-
