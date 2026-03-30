@@ -2,11 +2,11 @@
 
 ## Overview
 
-This archive is a **KSHV benchmark companion dataset** associated with the manuscript **“LoRTIA Plus: a chemistry-agnostic, feature-first software package for long-read transcriptome annotation”**. The KSHV component was designed to compare **LoRTIA Plus** with **bambu**, **FLAIR**, **IsoQuant**, and **NAGATA** in a compact, transcriptionally dense viral genome context using two ONT library types: **dcDNA** and **dRNA**. According to the manuscript, the viral benchmark evaluated **TSS**, **TES**, and **transcript-level** recovery separately, and the final KSHV reference elements were retained only if they were recovered by at least one annotator within the predefined positional tolerance. fileciteturn53file19
+This archive is a **KSHV benchmark companion dataset** associated with the manuscript **“LoRTIA Plus: a chemistry-agnostic, feature-first software package for long-read transcriptome annotation”**. The KSHV component was designed to compare **LoRTIA Plus** with **bambu**, **FLAIR**, **IsoQuant**, and **NAGATA** in a compact, transcriptionally dense viral genome context using two ONT library types: **dcDNA** and **dRNA**. According to the manuscript, the viral benchmark evaluated **TSS**, **TES**, and **transcript-level** recovery separately, and the final KSHV reference elements were retained only if they were recovered by at least one annotator within the predefined positional tolerance. 
 
 The Figshare version is intended to contain the **main KSHV benchmark and reference files**. The complete benchmarking workflow, downstream statistical summaries, and figure-generation / post-processing code are maintained separately in the project GitHub repository. The goal of this README is to describe both the KSHV data package structure and the role of the Python and R scripts that were used to generate and visualize the benchmark. fileciteturn53file19turn53file7
 
-## Suggested Figshare directory structure
+## Figshare directory structure
 
 ```text
 KSHV/
@@ -68,7 +68,7 @@ This directory contains the **core KSHV reference transcript and feature resourc
 - the reference **TSS**, **TES**, and **intron** feature files,
 - and any merged reference files from which the benchmark was derived.
 
-The uploaded scripts show that the benchmark could be built from merged transcript annotations together with separately written TSS/TES/intron GFF3 outputs. `merge_transcripts.py` can generate a merged transcript set together with separate TSS, TES, and intron files, while `compare_gff_tss_tes_introns.py` compares annotator-derived GFF/GFF3 feature files to a reference feature set. fileciteturn53file15turn46file1
+The uploaded scripts show that the benchmark could be built from merged transcript annotations together with separately written TSS/TES/intron GFF3 outputs. `merge_transcripts.py` can generate a merged transcript set together with separate TSS, TES, and intron files, while `compare_gff_tss_tes_introns.py` compares annotator-derived GFF/GFF3 feature files to a reference feature set.
 
 ### `figure_input/`
 
@@ -192,7 +192,7 @@ Using the output directory name as the base prefix, the script writes:
 
 ### Why is it useful in the KSHV benchmark?
 
-It is suitable for building a unified **KSHV transcript reference** and the corresponding **TSS / TES / intron** reference feature sets. fileciteturn53file11
+It is suitable for building a unified **KSHV transcript reference** and the corresponding **TSS / TES / intron** reference feature sets. 
 
 ------------------------------------------
 
@@ -200,7 +200,7 @@ It is suitable for building a unified **KSHV transcript reference** and the corr
 
 ### What does it do?
 
-This script compares **TSS**, **TES**, and **intron** features in one or more GFF/GFF3 files against a **reference GFF/GFF3 feature set** using a positional tolerance window. It sums feature scores per sample and writes both a **TSV** summary and a **merged GFF3** output. fileciteturn46file1turn53file11
+This script compares **TSS**, **TES**, and **intron** features in one or more GFF/GFF3 files against a **reference GFF/GFF3 feature set** using a positional tolerance window. It sums feature scores per sample and writes both a **TSV** summary and a **merged GFF3** output. 
 
 ### Example run command
 
@@ -341,7 +341,7 @@ Using the `--out` prefix, the script writes:
 - `<out>_matches.tsv`
 - `<out>_stats.tsv`
 - `<out>_false_positives.tsv`
-- `<out>_reference_not_found.tsv` fileciteturn53file0turn53file1
+- `<out>_reference_not_found.tsv` 
 
 ### Why is it useful in the KSHV benchmark?
 
@@ -353,7 +353,7 @@ This is the main **transcript-level benchmarking script**.
 
 ### What does it do?
 
-This script compares two **TSV** files at the transcript level using **TSS**, **TES**, and **intron** windows. For each row in the base file, it identifies matching transcript models in the query file and appends their **transcript IDs** and **categories** as new output columns. fileciteturn46file0turn53file11
+This script compares two **TSV** files at the transcript level using **TSS**, **TES**, and **intron** windows. For each row in the base file, it identifies matching transcript models in the query file and appends their **transcript IDs** and **categories** as new output columns. 
 
 ### Example run command
 
@@ -400,7 +400,7 @@ Required columns:
   - `Matched_Transcript_IDs`
   - `Matched_Categories`
 
-(or the names specified with `--id-out-col` and `--cat-out-col`) fileciteturn46file0
+(or the names specified with `--id-out-col` and `--cat-out-col`) 
 
 ### Why is it useful in the KSHV benchmark?
 
@@ -412,7 +412,7 @@ It is useful for generating the **category-annotated transcript table** used in 
 
 ### What does it do?
 
-This script compares two **TSV** files at the transcript level using **TSS**, **TES**, and **intron** windows. It preserves all columns from the base file and adds the **numeric value columns** from the query file by summing the values of all matching transcript models. fileciteturn46file2turn53file7
+This script compares two **TSV** files at the transcript level using **TSS**, **TES**, and **intron** windows. It preserves all columns from the base file and adds the **numeric value columns** from the query file by summing the values of all matching transcript models. 
 
 ### Example run command
 
@@ -450,7 +450,7 @@ All query columns other than the fixed transcript-coordinate columns are treated
 ### What is the output?
 
 - a **TSV** containing all base columns
-- plus the transferred numeric query columns. fileciteturn46file2
+- plus the transferred numeric query columns. 
 
 ### Why is it useful in the KSHV benchmark?
 
@@ -462,7 +462,7 @@ It is useful for transferring matched quantitative / support values onto a commo
 
 ### What does it do?
 
-This script merges multiple **TSV transcript lists** using separate **TSS**, **TES**, and **intron** windows to decide matches. It builds common **Cluster_ID** values and preserves prefixed `*_present` columns from the input files, producing one row per merged cluster. fileciteturn46file6turn53file7
+This script merges multiple **TSV transcript lists** using separate **TSS**, **TES**, and **intron** windows to decide matches. It builds common **Cluster_ID** values and preserves prefixed `*_present` columns from the input files, producing one row per merged cluster. 
 
 ### Example run command
 
@@ -511,7 +511,7 @@ Multiple input TSV files (`-i / --inputs`) containing at least:
 
 ### Why is it useful in the KSHV benchmark?
 
-It is used to create the combined **false-positive cluster table** required for the UpSet section of the KSHV figure. The `*_present` output pattern is consistent with the `dRNA_false_positives__..._present` and `dcDNA_false_positives__..._present` columns expected by `KSHV.R`. fileciteturn53file9
+It is used to create the combined **false-positive cluster table** required for the UpSet section of the KSHV figure. The `*_present` output pattern is consistent with the `dRNA_false_positives__..._present` and `dcDNA_false_positives__..._present` columns expected by `KSHV.R`. 
 
 ------------------------------------------
 
@@ -523,7 +523,7 @@ This R script generates a **composite KSHV benchmark figure** with three major c
 
 - **Panel A:** TSS / TES / transcript precision–recall–F1 panels
 - **Panel B:** transcript category stacked bar plot
-- **Panel C:** UpSet plots based on one combined false-positive TSV. fileciteturn53file9
+- **Panel C:** UpSet plots based on one combined false-positive TSV. 
 
 ### Example run command
 
@@ -558,7 +558,7 @@ Required columns:
 - `Category`
 - and at least one of `isoform` or `ref_id`
 
-If `.gff3_match` or `_match` annotator columns are present, the script converts them into annotator-specific category-composition summaries. fileciteturn53file9
+If `.gff3_match` or `_match` annotator columns are present, the script converts them into annotator-specific category-composition summaries. 
 
 #### UpSet panel
 The script expects one combined false-positive TSV.
@@ -572,7 +572,7 @@ Required columns:
 It also requires binary annotator-specific columns matching:
 
 - `dRNA_false_positives__<annotator>_present`
-- `dcDNA_false_positives__<annotator>_present` fileciteturn53file9
+- `dcDNA_false_positives__<annotator>_present` 
 
 ### What is its operating logic?
 
@@ -582,7 +582,7 @@ It also requires binary annotator-specific columns matching:
 
 ### What is the output?
 
-The script assembles the metrics, category, and UpSet components into a combined KSHV benchmark figure and writes PDF outputs for the figure panels and the combined figure. The script structure shows that this is the main KSHV summary figure used for the benchmark visualization. fileciteturn53file9turn53file16
+The script assembles the metrics, category, and UpSet components into a combined KSHV benchmark figure and writes PDF outputs for the figure panels and the combined figure. The script structure shows that this is the main KSHV summary figure used for the benchmark visualization. 
 
 ### What does the figure show?
 
