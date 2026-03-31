@@ -45,7 +45,7 @@ Clone the repository:
 
 ```sh
 git clone https://github.com/philipmories/LoRTIA-Plus
-cd LoRTIA-Plus
+cd LoRTIA-Plus/LoRTIA_Plus
 chmod 755 LoRTIA
 ```
 
