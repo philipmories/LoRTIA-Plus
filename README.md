@@ -5,7 +5,7 @@ LoRTIA Plus software and benchmark workflows for KSHV and human LRGASP long-read
 # LoRTIA-Plus - Long-read RNA-Seq Transcript Isoform Annotator toolkit
 
 <p align="center">
-  <img src="LoRTIA.png" alt="LoRTIA" width="500">
+  <img src="LoRTIA_Plus/LoRTIA.png" alt="LoRTIA" width="500">
 </p>
 
 LoRTIA-Plus is an extended version of the original LoRTIA toolkit for the annotation of transcript features such as transcription start sites (TSS), transcription end sites (TES), introns, and transcript isoforms from long-read RNA sequencing data. The toolkit expects `SAM` or `BAM` files as input and produces `GFF` files as well as other processed files as outputs. The sequencing reads can stem from any long-read sequencing platform, including Oxford Nanopore and PacBio. As long as the reads contain features that allow reliable identification of transcript ends, complete isoform annotation is possible.
@@ -13,7 +13,7 @@ LoRTIA-Plus is an extended version of the original LoRTIA toolkit for the annota
 `SAM` or `BAM` files can be produced by any mapper. However, when mapping with [minimap2], either run minimap2 with the `-Y` option or filter out secondary alignments before using LoRTIA-Plus. The toolkit was developed to run in UNIX environments.
 
 <p align="center">
-  <img src="workflow.png" alt="LoRTIA" width="500">
+  <img src="LoRTIA_Plus/workflow.png" alt="LoRTIA" width="500">
 </p>
 
 ## Project history
