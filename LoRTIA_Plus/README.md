@@ -1,6 +1,8 @@
 # LoRTIA-Plus - Long-read RNA-Seq Transcript Isoform Annotator toolkit
 
-![LoRTIA-Plus logo](LoRTIA.png)
+<p align="center">
+  <img src="assets/LoRTIA.png" alt="LoRTIA-Plus logo" width="220">
+</p>
 
 LoRTIA-Plus is an extended version of the original LoRTIA toolkit for the annotation of transcript features such as transcription start sites (TSS), transcription end sites (TES), introns, and transcript isoforms from long-read RNA sequencing data. The toolkit expects `SAM` or `BAM` files as input and produces `GFF` files as well as other processed files as outputs. The sequencing reads can stem from any long-read sequencing platform, including Oxford Nanopore and PacBio. As long as the reads contain features that allow reliable identification of transcript ends, complete isoform annotation is possible.
 
