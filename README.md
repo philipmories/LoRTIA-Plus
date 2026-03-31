@@ -30,9 +30,12 @@ Compared with the original LoRTIA release, LoRTIA-Plus includes:
 
 ## Contents
 
+- [Project history](#project-history)
+- [What is new in LoRTIA-Plus](#what-is-new-in-lortia-plus)
 - [Installation](#installation)
 - [Dependencies](#dependencies)
 - [Usage](#usage)
+- [Wiki](#wiki)
 - [Credits](#credits)
 - [Citation](#citation)
 
