@@ -9,7 +9,7 @@ LoRTIA-Plus is an extended version of the original LoRTIA toolkit for the annota
 `SAM` or `BAM` files can be produced by any mapper. However, when mapping with [minimap2], either run minimap2 with the `-Y` option or filter out secondary alignments before using LoRTIA-Plus. The toolkit was developed to run in UNIX environments.
 
 <p align="center">
-  <img src="Workflow.png" alt="LoRTIA" width="500">
+  <img src="workflow.png" alt="LoRTIA" width="500">
 </p>
 
 ## Project history
