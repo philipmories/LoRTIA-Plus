@@ -41,9 +41,8 @@ Clone the repository:
 
 ```sh
 git clone https://github.com/philipmories/LoRTIA-Plus
-cd LoRTIA-Plus
+cd LoRTIA-Plus/LoRTIA_Plus
 chmod 755 LoRTIA
-```
 
 Make sure all dependencies are installed and available in your `PATH`.
 
