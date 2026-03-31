@@ -8,6 +8,10 @@ LoRTIA-Plus is an extended version of the original LoRTIA toolkit for the annota
 
 `SAM` or `BAM` files can be produced by any mapper. However, when mapping with [minimap2], either run minimap2 with the `-Y` option or filter out secondary alignments before using LoRTIA-Plus. The toolkit was developed to run in UNIX environments.
 
+<p align="center">
+  <img src="Workflow.png" alt="LoRTIA" width="500">
+</p>
+
 ## Project history
 
 LoRTIA-Plus is based on the original LoRTIA toolkit developed by [Zsolt Balázs]. This repository was created to maintain and distribute an extended version of the software, including direct RNA-seq support and transcript annotation performance improvements.
