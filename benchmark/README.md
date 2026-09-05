@@ -11,6 +11,6 @@ The **`LRGASP/`** module contains three complementary workflows:
 - **`SQANTI3_benchmark/`** — SQANTI-based evaluation of recovery of known catalog-supported transcript structures, together with novelty-support and plausibility analyses
 - **`SQANTI3_basic_stats/`** — summary statistics and plotting workflows for isoform yield, structural class composition, isoform length distributions, coding/non-coding composition, and gene-level isoform complexity
 
-The **`KSHV/`** module contains the benchmark workflow used to compare **LoRTIA Plus** with **bambu**, **FLAIR**, **IsoQuant**, and **NAGATA** in the compact, transcriptionally dense **KSHV** transcriptome using **ONT dcDNA** and **ONT dRNA** datasets. This benchmark evaluates **TSS**, **TES**, and **transcript-level** recovery and includes figure-generation code for the composite KSHV benchmark figure.
+The **`KSHV/`** module contains the benchmark workflow used to compare **LoRTIA Plus** with **bambu**, **FLAIR**, **IsoQuant**, **StringTie2**, **LAPA**,and **NAGATA** in the compact, transcriptionally dense **KSHV** transcriptome using **ONT dcDNA** and **ONT dRNA** datasets. This benchmark evaluates **TSS**, **TES**, and **transcript-level** recovery and includes figure-generation code for the composite KSHV benchmark figure.
 
 This GitHub repository is the primary location for the **benchmarking scripts, workflow documentation, manifests, and figure-generation code**. Large benchmark input/output files and archived companion datasets are stored separately on **Figshare**.
