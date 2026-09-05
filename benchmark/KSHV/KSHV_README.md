@@ -2,7 +2,7 @@
 
 ## Overview
 
-This archive is a **KSHV benchmark companion dataset** associated with the manuscript **“LoRTIA Plus: a chemistry-agnostic, feature-first software package for long-read transcriptome annotation”**. The KSHV component was designed to compare **LoRTIA Plus** with **bambu**, **FLAIR**, **IsoQuant**, and **NAGATA** in a compact, transcriptionally dense viral genome context using two ONT library types: **dcDNA** and **dRNA**. According to the manuscript, the viral benchmark evaluated **TSS**, **TES**, and **transcript-level** recovery separately, and the final KSHV reference elements were retained only if they were recovered by at least one annotator within the predefined positional tolerance. 
+This archive is a **KSHV benchmark companion dataset** associated with the manuscript **“LoRTIA Plus: a chemistry-agnostic, feature-first software package for long-read transcriptome annotation”**. The KSHV component was designed to compare **LoRTIA Plus** with **bambu**, **FLAIR**, **IsoQuant**, **StringTie2**, **LAPA**, and **NAGATA** in a compact, transcriptionally dense viral genome context using two ONT library types: **dcDNA** and **dRNA**. According to the manuscript, the viral benchmark evaluated **TSS**, **TES**, and **transcript-level** recovery separately, and the final KSHV reference elements were retained only if they were recovered by at least one annotator within the predefined positional tolerance. 
 
 The Figshare version is intended to contain the **main KSHV benchmark and reference files**. The complete benchmarking workflow, downstream statistical summaries, and figure-generation / post-processing code are maintained separately in the project GitHub repository. The goal of this README is to describe both the KSHV data package structure and the role of the Python and R scripts that were used to generate and visualize the benchmark. fileciteturn53file19turn53file7
 
@@ -21,7 +21,7 @@ KSHV/
 
 ### `annotator_gff3/`
 
-This directory contains the **annotator-specific GFF3 predictions** that served as the direct input of the viral benchmark. It should contain the KSHV output GFF3 files for **LoRTIA Plus**, **bambu**, **FLAIR**, **IsoQuant**, and **NAGATA**, separated by the two library types:
+This directory contains the **annotator-specific GFF3 predictions** that served as the direct input of the viral benchmark. It should contain the KSHV output GFF3 files for **LoRTIA Plus**, **bambu**, **FLAIR**, **IsoQuant**, **StringTie2**, **LAPA**, and **NAGATA**, separated by the two library types:
 
 - **dcDNA**
 - **dRNA**
