@@ -25,7 +25,7 @@ has been retained.
 - **Archived release:** https://doi.org/10.5281/zenodo.19348065
 - **LoRTIA Plus preprint:** https://doi.org/10.64898/2026.04.03.716279
 - **Benchmark workflows:** [`benchmark/`](benchmark/)
--**Benchmark scripts, documentation, input files, and output files:** https://doi.org/10.6084/m9.figshare.31891948
+- **Benchmark scripts, documentation, input files, and output files:** https://doi.org/10.6084/m9.figshare.31891948
 
 > **Important**
 >
