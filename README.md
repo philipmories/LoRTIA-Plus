@@ -1,5 +1,9 @@
 # LoRTIA Plus
 
+<p align="center">
+  <img src="LoRTIA.png" alt="LoRTIA" width="500">
+</p>
+
 **Chemistry-agnostic, feature-first long-read transcriptome annotation**
 
 LoRTIA Plus is a long-read RNA-seq transcript annotation workflow for detecting
