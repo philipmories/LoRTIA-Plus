@@ -1,7 +1,19 @@
 #!/usr/bin/env python3
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError
 import pandas as pd
+
+def str2bool(value):
+    """Parse an explicit command-line boolean value."""
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in {"true", "t", "1", "yes", "y"}:
+        return True
+    if normalized in {"false", "f", "0", "no", "n"}:
+        return False
+    raise ArgumentTypeError("expected a boolean value: True or False")
+
 
 
 def line_end(df, new_df, feature, sign):
@@ -62,7 +74,11 @@ def Gff_creator(args):
         df = pd.read_csv(file, sep = "\t")
         line_intron(df, new_df, args.feature)
         if args.force_consensus:
-            new_df = new_df.loc[new_df["info"] != "None"]
+            # Keep only the canonical splice-site classes documented by LoRTIA.
+            # Do not rely on the string "None": pandas may parse it as NaN,
+            # which made this filter environment/version dependent.
+            allowed_consensus = {"GT/AG", "GC/AG", "AT/AC"}
+            new_df = new_df.loc[new_df["info"].isin(allowed_consensus)]
     else:
         if args.feature == "tss":
             filepos = "{}_l5_{}.tsv".format(args.prefix, args.feature)
@@ -117,19 +133,19 @@ def parsing():
                         metavar="[file]")
     parser.add_argument("-s", "--significance",
                         dest="significance",
-                        help="The method which should be used to filter the\
-                        TSS and TES features. A single features significance \
-                        can be evaluated compared to the Poisson [poisson] or \
-                        the Pólya-Aeppli [polya-aeppli] distributions. The \
-                        default is that every qualified feature is selected.",
+                        help="Optional Poisson significance filter [poisson]. "
+                             "The top-level LoRTIA Plus workflow applies it to "
+                             "TSS generation only; the standalone module applies "
+                             "it to the requested endpoint feature. Default: "
+                             "disabled.",
                         default=False,
                         metavar="[string]")
     parser.add_argument("-f", "--force_consensus",
                         dest="force_consensus",
-                        help="Accept only those introns which have the GTAG,\
-                        GCAG, ATAC consensus sequences. Type True to enable \
-                        this. By default every qualified intron is selected. ",
-                        type=bool,
+                        help="Require GT-AG, GC-AG or AT-AC consensus splice-site "
+                             "pairs for intron output. Pass True or False. "
+                             "Default: False.",
+                        type=str2bool,
                         default=False,
                         metavar="[bool]")
     return parser.parse_args()

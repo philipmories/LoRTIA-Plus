@@ -1,317 +1,673 @@
 #!/usr/bin/env python3
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError, RawDescriptionHelpFormatter
 import Samprocessor
 import Stats
 import Gff_creator
 import Transcript_Annotator
+import Fusion_Annotator
 
 
-parser = ArgumentParser(description="This is LoRTIA: a Long-read RNA-Seq\
-                        Transcript Isofom Annotator.")
-parser.add_argument("in_file",
-                    help="Input file. Both .sam and .bam files are accepted.",
-                    metavar="input_file")
-parser.add_argument("out_path",
-                    help="Output folder. Multiple output files are going\
-                    to be created using the input file's prefix (ie. the\
-                    part that precedes '.bam' or '.sam')",
-                    metavar="output_path")
-parser.add_argument("reference",
-                    help = "The reference fasta file. Template-switching \
-                    in the case of putative introns is going to be checked\
-                    according to this file. It can contain multiple contigs.",
-                    metavar = "reference_fasta")
-parser.add_argument("--match_score", 
-                    dest="match_score",
-                    help="The alignment scores for each match when searching\
-                    for adapters. Penalty scores should be supplied as \
-                    negative vaules. The default is: 2",
-                    type=float,
-                    metavar="[float]", 
-                    default=2.0,
-                    required=False)
-parser.add_argument("--mismatch_score", 
-                    dest="mismatch_score",
-                    help="The alignment scores for each mismatch when \
-                    searching for adapters. Penalty scores should be \
-                    supplied as negative vaules. The default is: -3",
-                    metavar="[float]", 
-                    default=-3.0,
-                    required=False)
-parser.add_argument("--gap_open_score", 
-                    dest="gap_open_score",
-                    help="The alignment scores for each gap opening when\
-                    searching for adapters. Penalty scores should be \
-                    supplied as negative vaules. The default is: -3",
-                    type=float,
-                    metavar="[float]", 
-                    default=-3.0,
-                    required=False)
-parser.add_argument("--gap_extend_score", 
-                    dest="gap_extend_score",
-                    help="The alignment scores for each gap extension \
-                    when searching for adapters. Penalty scores should be \
-                    supplied as negative vaules. The default is: -3",
-                    type=float,
-                    metavar="[float]", 
-                    default=-3.0,
-                    required=False)
-parser.add_argument("-3", "--three_adapter", 
-                    dest="three_adapter",
-                    help="The 3' adapter to look for, the default is a \
-                    polyA tail of 30 adenines",
-                    metavar="[string]",
-                    default=30*"A",
-                    required=False)
-parser.add_argument("-5", "--five_adapter", 
-                    dest="five_adapter",
-                    help="The 5' adapter to look for. The default is the\
-                    TeloPrime cap adapter: TGGATTGATATGTAATACGACTCACTATAG",
-                    metavar="[string]",
-                    default="TGGATTGATATGTAATACGACTCACTATAG",
-                    required=False)
-parser.add_argument("--dRNA",
-                    dest="dRNA",
-                    help="Enable direct RNA mode (dRNA). In this mode LoRTIA does not search for 5' adapters, the 5' end is always treated as correct based on the mapper strand flag, and only the 3' poly(A) QC is applied as usual.",
-                    action="store_true",
-                    default=False)
+def str2bool(value):
+    """Parse an explicit command-line boolean while preserving '-f True/False'."""
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in {"true", "t", "1", "yes", "y"}:
+        return True
+    if normalized in {"false", "f", "0", "no", "n"}:
+        return False
+    raise ArgumentTypeError("expected a boolean value: True or False")
 
-parser.add_argument("--five_score", 
-                    dest="five_score",
-                    help="The minimum score that the adapter alignment \
-                    should reach to be recognized as a 5' adapter. The \
-                    default score is 20.0",
-                    type=float,
-                    metavar="[float]",
-                    default=20.0,
-                    required=False)
-parser.add_argument("--three_score", 
-                    dest="three_score",
-                    help="The minimum score that the adapter alignment \
-                    should reach to be recognized as a 3' adapter. The \
-                    default score is 20.0",
-                    type=float,
-                    metavar="[float]",
-                    default=20.0,
-                    required=False)
-parser.add_argument("--check_in_soft", 
-                    dest="check_in_soft",
-                    help="The number of nucleotides from the start of \
-                    the soft clip where the adapter sequence is searched \
-                    for. It is not advisable to search for adapters too \
-                    deep into the soft clip not only because it may \
-                    increase running time, but also because it increases \
-                    false positive hits. The default is 30.",
-                    type=int,
-                    metavar="[integer]",
-                    default=30,
-                    required=False)
-parser.add_argument("--check_in_match", 
-                    dest="check_in_match",
-                    help="The number of nucleotides from the start of \
-                    the soft clip where the adapter sequence is searched \
-                    for. This lets adapters be discovered even if they \
-                    resemble some genomic segments and therefore align to \
-                    the genome. The default is 10.",
-                    type=int,
-                    metavar="[integer]",
-                    default=10,
-                    required=False)
-parser.add_argument("--check_from_alignment", 
-                    dest="check_from_alignment",
-                    help="The maximum distance of the adapter from the \
-                    alignment. Some bases may be inserted or miscalled \
-                    between the adapter and the mapping part of the read, \
-                    This parameter allows those adapters to be considered \
-                    'correct' which do not start exactly at the end of \
-                    the mapped part but are a few bases off. The default \
-                    value is 3.",
-                    type=int,
-                    metavar="[integer]",
-                    default=3,
-                    required=False)
-parser.add_argument("--shs_for_ts", 
-                    dest="shs_for_ts",
-                    help="The minimum length of agreement (Short \
-                    Homologous sequence, SHS) between the start of the \
-                    match part of the alignment and the adapter that \
-                    raises a suspicion of template switching. Putative\
-                    template switching artefacts are listed in a \
-                    separate file and are excluded form further \
-                    statistics. The value has to be lesser than the value\
-                    set by --check_in_match. If greater or equal value is\
-                    set, the program will not look for signs of template \
-                    switching. The default value is 3 nucleotides.",
-                    type=int,
-                    metavar="[integer]",
-                    default=3,
-                    required=False)
-parser.add_argument("--first_exon", 
-                    dest="first_exon",
-                    help="Alignment ends are often placed far away from \
-                    from the rest of the read if the adapter maps to a \
-                    nearby part of the genome. This option sets the length\
-                    of the first exon, under which the matching part of\
-                    of the alignment should be checked for the presence of\
-                    the adapters. The default is 30.",
-                    type=int,
-                    metavar="[integer]",
-                    default=30)
-parser.add_argument("--match_in_first", 
-                    dest="match_in_first",
-                    help="Alignment ends are often placed far away from \
-                    from the rest of the read if the adapter maps to a \
-                    nearby part of the genome. With this option, the user\
-                    can set how many nucleotides from the matching part \
-                    of the alignment should be aligned to the adapter \
-                    if at least half of the nucleotides match to the \
-                    adapter, the exon will be considered false. The \
-                    default is 15.",
-                    type=int,
-                    metavar="[integer]",
-                    default=15)
-parser.add_argument("--insert_before_intron", 
-                    dest="insert_before_intron",
-                    help="The maximum allowed insert length immediately \
-                    before an intron. Triple-chimeric reads are often \
-                    as an exon, a long insert and another exon. In these \
-                    cases the inserts are usually several hundred nts \
-                    long and are unmapped because they stem from another \
-                    contig or would be mapped to the complementary strand.\
-                    The default value is 20 nts.",
-                    type=int,
-                    metavar="[integer]",
-                    default=20,
-                    required=False)
-parser.add_argument("-w", "--window",
-                    dest="window",
-                    help="The window that is examined when calculating \
-                    the Poisson distribution. Setting low values finds \
-                    false positives in a noisy data, while setting high \
-                    values leads to false negatives due to the different \
-                    transcriptional activity of different genomic regions.\
-                    The default value is 50, which translates to a 101 nt\
-                    bin (examined nucleotide +/- 50 nucleotides).",
-                    type=int,
-                    default=50,
-                    metavar="[integer]")
-parser.add_argument("-m", "--minimum",
-                    dest="minimum", 
-                    help="The minimal number of reads for the feature to\
-                    be accepted.",
-                    type=int,
-                    default=2,
-                    metavar="[integer]")
-parser.add_argument("-b", "--wobble",
-                    dest="wobble",
-                    help="The window, in which only one of each feature \
-                    is expected, and locations with lesser support are \
-                    considered to be derivatives of the major. The default\
-                    value is 10, which means that only one feature of a \
-                    kind can be described in a 21 nt bin (location +/-10 \
-                    nt). This only applies to TSSs and TESs.",
-                    type=float,
-                    default=10,
-                    metavar="[integer]")
-parser.add_argument("-i", "--intron_wobble",
-                    dest="intron_wobble",
-                    help="This option is only important for error-prone \
-                    reads. Sequencing errors can disrupt the mapping of \
-                    introns. Rare splice juntions can be detected in the \
-                    close vicinity of more frequently utilized splice\
-                    junctions. The rare splice junctions are likely to \
-                    be results of sequencing errors of the more frequent \
-                    version. This option regulates the window in which a \
-                    rare intron will be considered to have stemmed from a \
-                    sequencing error. The default value is 15 nt. That \
-                    means that the rare introns which are no further than \
-                    15 nt away from more frequent introns, will be \
-                    considered to be sequencing errors.",
-                    type=int,
-                    default=15,
-                    metavar="[integer]")
-parser.add_argument("--rare_intron",
-                    dest="rare_intron",
-                    help="This option is only important for error-prone \
-                    reads. Sequencing errors can disrupt the mapping of \
-                    introns. Rare splice juntions can be detected in the \
-                    close vicinity of more frequently utilized splice\
-                    junctions. The rare splice junctions are likely to \
-                    be results of sequencing errors of the more frequent \
-                    version. This option determines how much rarer an \
-                    should be than the most frequent intron in its +/- \
-                    'intron_wobble' vicinity, in orderd to be discarded as\
-                    a sequencing error. The default value is 0.05.",
-                    type=float,
-                    default=0.05,
-                    metavar="[float]")
-parser.add_argument("-t", "--ratio",
-                    dest = "ratio",
-                    help = "The minimal ratio of the coverage that a feature \
-                    has to reach to be accepted. The default value is 0.001.",
-                    type=float,
-                    default=0.001,
-                    metavar="[float]")
-parser.add_argument("-d", "--distance",
-                    dest="distance",
-                    help="The distance from the feature position where \
-                    coverage should be calculated. The default value is 15. \
-                    A positive value should be given, the inward direction is \
-                    calculated by the program automatically.",
-                    type=int,
-                    default = 15,
-                    metavar="[integer]")
-parser.add_argument("--cov_sample",
-                    dest="cov_sample",
-                    help="The number of nucleotides where the coverage \
-                    should be averaged. This many consecutive nucleotides\
-                    will be considered from the 'distance' towards the \
-                    feature. Its absolute value has to be smaller than \
-                    or equal to the value of 'distance'. The default value\
-                    is 5.",
-                    type=int,
-                    default=5,
-                    metavar="[integer]")
-parser.add_argument("-f", "--force_consensus",
-                    dest="force_consensus",
-                    help="Accept only those introns which have the GTAG,\
-                    GCAG, ATAC consensus sequences. Type True to enable \
-                    this. By default every qualified intron is selected. ",
-                    type=bool,
-                    default=False,
-                    metavar="[bool]")
-parser.add_argument("-s", "--significance",
-                    dest="significance",
-                    help="The method which should be used to filter the TSS\
-                    and TES features. A single features significance can be\
-                    evaluated compared to the Poisson [poisson] or the \
-                    Pólya-Aeppli [polya-aeppli] distributions. The default is\
-                    that every qualified feature is selected.",
-                    default=False,
-                    metavar="[string]")
-parser.add_argument("-g", "--gap",
-                    dest="gap",
-                    help="The largest allowed gap in the alignment with \
-                    which it still constitutes as a transcript. Gaps are \
-                    deletions which are not found in the gff of accepted \
-                    introns. Such gaps can be present in chimeric reads \
-                    which are often artefactual. The default value is \
-                    1000.",
-                    type=int,
-                    default=1000,
-                    metavar="[integer]")
-parser.add_argument("--mintr_count",
-                    dest="mintr_count",
-                    help="The minimum number of reads that has to \
-                    support a transcript isoform for the isoform to be \
-                    reported. The default is 1.",
-                    type=int,
-                    default=1,
-                    metavar="[integer]")
+
+CLI_EPILOG = r"""
+Terminal adapter-search geometry
+--------------------------------
+The diagram below shows the LEFT alignment end. The RIGHT end is handled as
+its mirror image. S = terminal soft-clipped query sequence; M = query sequence
+already included in the mapped alignment.
+
+Distances count read bases, not reference-genome positions. "Mapped" does
+not imply perfect identity to the reference. Neither search-window setting
+specifies a minimum number of adapter matches.
+
+    terminal soft clip                 mapped alignment
+    S S S S S S S S S S S S S S S S | M M M M M M M M M M M M M M M M
+                                      ^
+                                      mapped boundary
+
+          <------ --check_in_soft ---->|<-- --check_in_match -->
+          <----------- adapter-search window ------------------>
+
+--check_in_soft determines how much terminal soft-clipped query sequence is
+included in the local adapter-search window. --check_in_match extends the same
+window into the immediately adjacent mapped query sequence. The latter is
+important when adapter-derived bases have been aligned to the reference rather
+than represented entirely as soft clipping.
+
+After local alignment of the expected 5' or 3' terminal sequence, the hit must
+also satisfy --check_from_alignment. This positional constraint requires the
+adapter alignment to terminate sufficiently close to the mapped boundary on
+the soft-clipped side; adapter alignments extending into the mapped side are
+accepted only within the sequence included by --check_in_match. Thus a strong
+adapter-like sequence match is not sufficient by itself: it must also occur at
+the expected terminal position.
+
+Worked example:
+    With --check_in_soft 15 --check_in_match 10 --check_from_alignment 3,
+    a 20-nt soft clip contributes its 15 bases nearest the mapped boundary;
+    up to 10 adjacent aligned read bases complete the search window.
+    A hit whose boundary-facing end stops 3 nt before the boundary passes
+    the position test; one stopping 4 nt before it fails, whatever its score.
+    A hit extending 2 nt into the aligned side passes position but still
+    undergoes terminal artefact checks. A shorter soft clip contributes
+    only the available bases. Hard-clipped sequence cannot be recovered.
+    The conventional adapter-search path requires terminal soft clipping;
+    --check_in_match alone does not enable searching an unclipped end.
+
+Score and parameter interactions:
+    Local alignment can recognise only part of the supplied adapter.
+    Its score must be strictly GREATER than --five_score or --three_score;
+    equality fails. Scores are not percentages or counts of matching bases.
+    With +2 per match and a threshold of 16, eight perfectly paired bases
+    score 16 and fail; nine score 18 and pass the score test. Position and
+    terminal QC still apply.
+    A larger search window exposes more sequence to possible false hits.
+    More aligned-side sequence can recover partly aligned adapters, but
+    also changes the sequence available to the short-homology check.
+    A larger --check_from_alignment accepts more distant terminal hits.
+    Choose adapter length and score thresholds together; these controls
+    are not interchangeable.
+
+False terminal-exon check
+-------------------------
+Adapter-derived sequence can occasionally be mapped as a short terminal exon.
+--first_exon defines the maximum terminal-exon length subjected to this check,
+and --match_in_first sets how much mapped terminal-exon sequence is compared
+with the expected adapter. Sufficient adapter similarity causes the terminal
+configuration to be treated as artefact-related rather than as a genuine exon.
+
+Library-mode notes
+------------------
+For adapter-containing cDNA/CapTrap libraries, supply library-appropriate 5'
+and 3' terminal sequences and score thresholds. The generic CLI defaults are
+not intended to replace chemistry-specific settings. In --dRNA mode, the 5'
+adapter search is skipped; mapper-derived strand information is used. Terminal
+QC is retained for the true 3' end. --pacbio enables the optional adapterless
+PacBio full-length cDNA orientation mode.
+
+PacBio preprocessing and --pacbio:
+    CCS generates consensus HiFi reads. In the standard Iso-Seq workflow,
+    lima subsequently removes cDNA primers, including the 5' primer;
+    isoseq refine can also remove the poly(A) tail. Do not attribute cDNA
+    primer removal to CCS consensus generation itself.
+    If the 5' primer has been removed but a detectable terminal poly(A)
+    signal remains, use --pacbio for full-length PacBio cDNA reads.
+    This mode searches both ends for the 3' signal. Exactly one end must
+    receive a correct 3' call to infer orientation and accept the opposite
+    end as 5', without requiring a 5' adapter hit. Full-length status is an
+    input assumption, not independently established by this mode.
+    If poly(A) has also been removed, --pacbio alone cannot replace the
+    missing terminal evidence. Check preprocessing and retained sequence.
+    Official preprocessing reference:
+    https://isoseq.how/clustering/cli-workflow.html
+
+Quick-start examples
+--------------------
+The examples below are library-specific starting configurations, not universal
+platform presets. Adapter sequences must match the actual library preparation
+and the sequence retained after preprocessing. Replace sample.sorted.bam,
+output_folder and reference.fasta with your own paths. The adapter-containing
+examples apply only when their listed terminal sequences are retained.
+
+ONT cDNA / direct-cDNA:
+    LoRTIA -5 TGCCATTAGGCCGGG --five_score 16 --check_in_soft 15 \
+      --check_in_match 10 --check_from_alignment 3 -3 AAAAAAAAAAAAAAA \
+      --three_score 16 --shs_for_ts 3 -s poisson \
+      sample.sorted.bam output_folder reference.fasta
+
+ONT CapTrap:
+    LoRTIA -5 AACGCAGAGTAC --five_score 16 --check_in_soft 15 \
+      --check_in_match 10 --check_from_alignment 3 -3 AAAAAAAAAAAAAAA \
+      --three_score 16 --shs_for_ts 3 -s poisson \
+      sample.sorted.bam output_folder reference.fasta
+
+PacBio cDNA / Iso-Seq (5' adapter retained):
+    LoRTIA -5 AGAGTACATGGG --five_score 16 --check_in_soft 15 \
+      --check_in_match 10 --check_from_alignment 3 -3 AAAAAAAAAAAAAAA \
+      --three_score 18 --shs_for_ts 3 -s poisson \
+      sample.sorted.bam output_folder reference.fasta
+
+PacBio cDNA (5' primer removed; terminal poly(A) retained):
+    LoRTIA --pacbio --check_in_soft 15 --check_in_match 10 \
+      --check_from_alignment 3 -3 AAAAAAAAAAAAAAA --three_score 18 \
+      --shs_for_ts 3 -s poisson \
+      sample.sorted.bam output_folder reference.fasta
+
+PacBio CapTrap (5' adapter retained):
+    LoRTIA -5 AACGCAGAGTAC --five_score 16 --check_in_soft 15 \
+      --check_in_match 10 --check_from_alignment 3 -3 AAAAAAAAAAAAAAA \
+      --three_score 16 --shs_for_ts 3 -s poisson \
+      sample.sorted.bam output_folder reference.fasta
+
+ONT direct RNA:
+    LoRTIA --dRNA --check_in_soft 6 --check_in_match 10 \
+      --check_from_alignment 3 -3 AAAA --three_score 6 --shs_for_ts 12 \
+      -s poisson sample.sorted.bam output_folder reference.fasta
+
+Upstream alignment note:
+    Preserve terminal query sequence in supplementary alignments. For example,
+    use minimap2 with -Y and --secondary=no. ONT direct-RNA alignments should
+    additionally use the appropriate splice-aware direct-RNA options. For
+    BAM-based workflows, use a valid alignment that preserves terminal query
+    sequence; the benchmark workflows used coordinate-sorted and indexed BAMs.
+
+These are recommended starting configurations, not universal optima. Detailed
+chemistry-specific guidance and exact benchmark-specific commands are provided
+in Supplementary Table S2 and Supplementary Table S4, respectively.
+
+For detailed implementation-level definitions and parameter interactions, see
+the LoRTIA Plus supplementary documentation and repository documentation.
+"""
+
+
+parser = ArgumentParser(
+    prog="LoRTIA",
+    usage="%(prog)s [options] input_file output_path reference_fasta",
+    description=(
+        "LoRTIA Plus: feature-first long-read transcriptome annotation.\n"
+        "Evaluate terminal evidence and splice junctions before reconstructing\n"
+        "transcript models. Options are grouped by processing stage below."
+    ),
+    epilog=CLI_EPILOG,
+    formatter_class=lambda prog: RawDescriptionHelpFormatter(
+        prog, width=78, max_help_position=28
+    ),
+)
+
+required = parser.add_argument_group("required inputs")
+required.add_argument(
+    "in_file",
+    help="Input alignment file in SAM or BAM format.",
+    metavar="input_file",
+)
+required.add_argument(
+    "out_path",
+    help=(
+        "Output directory. LoRTIA Plus creates multiple files using the input "
+        "alignment basename as the output prefix."
+    ),
+    metavar="output_path",
+)
+required.add_argument(
+    "reference",
+    help=(
+        "Reference genome FASTA used for sequence-context checks, including "
+        "splice-site and template-switching-related evaluation. Multiple "
+        "reference contigs are supported."
+    ),
+    metavar="reference_fasta",
+)
+
+library = parser.add_argument_group("library and orientation modes")
+library.add_argument(
+    "--dRNA",
+    dest="dRNA",
+    help=(
+        "Enable ONT direct-RNA mode. LoRTIA Plus skips 5' adapter search, uses "
+        "mapper-derived strand information, treats the true 5' end as accepted, "
+        "and applies terminal QC to the true 3' end."
+    ),
+    action="store_true",
+    default=False,
+)
+library.add_argument(
+    "--pacbio",
+    dest="pacbio",
+    help=(
+        "Enable optional adapterless PacBio full-length cDNA mode. LoRTIA Plus "
+        "searches for the 3' poly(A)-associated signal at both molecule ends; "
+        "a unique correct call determines orientation and the opposite end is "
+        "treated as the 5' end. Recommended for full-length cDNA when the 5' "
+        "primer was removed but the terminal poly(A) signal remains. This "
+        "does not restore trimmed sequence or independently prove full length."
+    ),
+    action="store_true",
+    default=False,
+)
+performance = parser.add_argument_group("performance and I/O")
+performance.add_argument(
+    "--threads",
+    dest="threads",
+    help=(
+        "Threads used for pysam/samtools BAM sorting, indexing, filtering and "
+        "coverage I/O. Name sorting remains single-threaded to preserve the "
+        "tested same-QNAME ordering. Default: 8."
+    ),
+    type=int,
+    default=8,
+    metavar="[integer]",
+)
+adapter = parser.add_argument_group("terminal sequences and local-alignment scoring")
+adapter.add_argument(
+    "-5", "--five_adapter",
+    dest="five_adapter",
+    help=(
+        "Expected 5' terminal adapter sequence used for local adapter search. "
+        "The appropriate sequence is library dependent. Generic default: "
+        "TGGATTGATATGTAATACGACTCACTATAG."
+    ),
+    metavar="[string]",
+    default="TGGATTGATATGTAATACGACTCACTATAG",
+)
+adapter.add_argument(
+    "-3", "--three_adapter",
+    dest="three_adapter",
+    help=(
+        "Expected 3' terminal sequence used for local adapter/poly(A)-associated "
+        "search. The appropriate sequence is library dependent. Generic "
+        "default: 30 adenines."
+    ),
+    metavar="[string]",
+    default=30 * "A",
+)
+adapter.add_argument(
+    "--five_score",
+    dest="five_score",
+    help=(
+        "5' local-alignment score threshold: the score must be strictly greater "
+        "than this value; equality fails. Not a percent identity or base count. "
+        "Use a library-specific threshold where available. Generic default: 16.0."
+    ),
+    type=float,
+    metavar="[float]",
+    default=16.0,
+)
+adapter.add_argument(
+    "--three_score",
+    dest="three_score",
+    help=(
+        "3' local-alignment score threshold: the score must be strictly greater "
+        "than this value; equality fails. Position and terminal QC also apply. "
+        "Use a library-specific threshold where available. Generic "
+        "default: 16.0."
+    ),
+    type=float,
+    metavar="[float]",
+    default=16.0,
+)
+adapter.add_argument(
+    "--match_score",
+    dest="match_score",
+    help="Local adapter-alignment score assigned to a nucleotide match. Default: +2.",
+    type=float,
+    metavar="[float]",
+    default=2.0,
+)
+adapter.add_argument(
+    "--mismatch_score",
+    dest="mismatch_score",
+    help="Local adapter-alignment score assigned to a mismatch. Default: -3.",
+    type=float,
+    metavar="[float]",
+    default=-3.0,
+)
+adapter.add_argument(
+    "--gap_open_score",
+    dest="gap_open_score",
+    help="Local adapter-alignment penalty for opening a gap. Default: -3.",
+    type=float,
+    metavar="[float]",
+    default=-3.0,
+)
+adapter.add_argument(
+    "--gap_extend_score",
+    dest="gap_extend_score",
+    help="Local adapter-alignment penalty for extending a gap. Default: -3.",
+    type=float,
+    metavar="[float]",
+    default=-3.0,
+)
+
+terminal = parser.add_argument_group("terminal adapter geometry and artefact control")
+terminal.add_argument(
+    "--check_in_soft",
+    dest="check_in_soft",
+    help=(
+        "Maximum number of terminal soft-clipped query nucleotides included in "
+        "the adapter-search window immediately adjacent to the mapped boundary. "
+        "Restricting the search depth reduces internal adapter-like false hits. "
+        "Default: 30 nt."
+    ),
+    type=int,
+    metavar="[integer]",
+    default=30,
+)
+terminal.add_argument(
+    "--check_in_match",
+    dest="check_in_match",
+    help=(
+        "Number of immediately adjacent aligned read nucleotides "
+        "included from inside the mapped boundary in the adapter-search window. "
+        "This recovers adapter-derived sequence that the mapper aligned to the "
+        "reference instead of leaving entirely soft-clipped. These bases need "
+        "not match the reference perfectly; this is not a required adapter "
+        "match count. Default: 10 nt."
+    ),
+    type=int,
+    metavar="[integer]",
+    default=10,
+)
+terminal.add_argument(
+    "--check_from_alignment",
+    dest="check_from_alignment",
+    help=(
+        "Maximum number of read bases by which the boundary-facing end of a "
+        "local adapter hit may stop before the mapped boundary, on the clipped "
+        "side. Not a genomic distance or distance from the read tip. "
+        "This rejects strong but geometrically misplaced adapter-like "
+        "matches. Default: 3 nt."
+    ),
+    type=int,
+    metavar="[integer]",
+    default=3,
+)
+terminal.add_argument(
+    "--shs_for_ts",
+    dest="shs_for_ts",
+    help=(
+        "Minimum adapter-associated short-homology length used to flag a "
+        "terminal adapter call as potential template switching. The test "
+        "evaluates adapter similarity extending into adjacent mapped query "
+        "sequence. Potential-template-switching observations are retained as a "
+        "separate read-end class for downstream QC. The threshold should be "
+        "smaller than --check_in_match; values > --check_in_match make this "
+        "read-end short-homology test inactive. Equality still permits the "
+        "boundary case in this CIGAR-dependent test. Default: 3 nt."
+    ),
+    type=int,
+    metavar="[integer]",
+    default=3,
+)
+terminal.add_argument(
+    "--first_exon",
+    dest="first_exon",
+    help=(
+        "Maximum terminal-exon length subjected to the false-terminal-exon "
+        "check. Short terminal exons are tested for adapter similarity before "
+        "being interpreted as genuine transcript structure. Default: 30 nt."
+    ),
+    type=int,
+    metavar="[integer]",
+    default=30,
+)
+terminal.add_argument(
+    "--match_in_first",
+    dest="match_in_first",
+    help=(
+        "Number of mapped nucleotides from a short terminal exon compared with "
+        "the expected adapter during the false-terminal-exon check. Used with "
+        "--first_exon. Default: 15 nt."
+    ),
+    type=int,
+    metavar="[integer]",
+    default=15,
+)
+terminal.add_argument(
+    "--insert_before_intron",
+    dest="insert_before_intron",
+    help=(
+        "Maximum insertion length allowed immediately before an intron (CIGAR N). "
+        "Longer pre-intron insertions are treated as evidence of a chimeric or "
+        "artefactual configuration and prevent that skipped interval from being "
+        "retained as a genuine intron. Default: 20 nt."
+    ),
+    type=int,
+    metavar="[integer]",
+    default=20,
+)
+
+features = parser.add_argument_group("TSS, TES and intron evaluation")
+features.add_argument(
+    "-m", "--minimum",
+    dest="minimum",
+    help=(
+        "Minimum number of eligible reads supporting a candidate feature before "
+        "sample-level acceptance. Default: 2."
+    ),
+    type=int,
+    default=2,
+    metavar="[integer]",
+)
+features.add_argument(
+    "-t", "--ratio",
+    dest="ratio",
+    help=(
+        "Minimum feature-support/local-coverage ratio required for sample-level "
+        "feature acceptance. Default: 0.001."
+    ),
+    type=float,
+    default=0.001,
+    metavar="[float]",
+)
+features.add_argument(
+    "-d", "--distance",
+    dest="distance",
+    help=(
+        "Transcript-internal offset from the candidate feature at which local "
+        "coverage sampling begins. Direction is determined automatically from "
+        "feature type and strand. Default: 15 nt."
+    ),
+    type=int,
+    default=15,
+    metavar="[integer]",
+)
+features.add_argument(
+    "--cov_sample",
+    dest="cov_sample",
+    help=(
+        "Number of consecutive transcript-internal positions averaged for local "
+        "coverage normalisation, sampled from --distance toward the feature. "
+        "Must not exceed --distance. Default: 5 positions."
+    ),
+    type=int,
+    default=5,
+    metavar="[integer]",
+)
+features.add_argument(
+    "-b", "--wobble",
+    dest="wobble",
+    help=(
+        "Local TSS/TES neighbourhood used to select one representative endpoint "
+        "coordinate. A position is retained only if no competing coordinate "
+        "within +/- wobble has greater support; equal maxima are resolved toward "
+        "the outer transcript boundary. Default: 10 nt."
+    ),
+    type=int,
+    default=10,
+    metavar="[integer]",
+)
+# Preserve the current endpoint-jitter option unchanged; it is intentionally not
+# expanded in the new CLI documentation block in this revision.
+features.add_argument(
+    "--end_jitter", "--endpoint_jitter",
+    dest="end_jitter",
+    help=(
+        "Optional TSS/TES endpoint-support jitter window. Legacy --wobble peak "
+        "coordinates are selected first from exact-coordinate support; nearby "
+        "endpoints within +/- N nt are then assigned once to those fixed peaks "
+        "before feature qualification. Jitter cannot create or move peaks and "
+        "is disabled by default (0) to preserve legacy output."
+    ),
+    type=int,
+    default=0,
+    metavar="[integer]",
+)
+features.add_argument(
+    "-w", "--window",
+    dest="window",
+    help=(
+        "Half-width of the local background window used for optional Poisson "
+        "evaluation of TSS candidates. With the default 50 nt, the symmetric "
+        "window contains 101 genomic positions. Default: 50 nt."
+    ),
+    type=int,
+    default=50,
+    metavar="[integer]",
+)
+features.add_argument(
+    "-s", "--significance",
+    dest="significance",
+    help=(
+        "Optional TSS significance filter. In the main LoRTIA Plus workflow, "
+        "'-s poisson' applies the local Poisson test to TSS candidates only; "
+        "TES calling retains endpoint-peak, minimum-support and coverage-ratio "
+        "qualification without Poisson filtering. Default: disabled."
+    ),
+    default=False,
+    metavar="[string]",
+)
+features.add_argument(
+    "-i", "--intron_wobble",
+    dest="intron_wobble",
+    help=(
+        "Maximum donor- and acceptor-coordinate distance used to define nearby "
+        "competing splice junctions. A candidate is compared only with junctions "
+        "whose donor AND acceptor both fall within this tolerance. Used with "
+        "--rare_intron to suppress locally shifted sequencing/alignment errors. "
+        "Default: 15 nt."
+    ),
+    type=int,
+    default=15,
+    metavar="[integer]",
+)
+features.add_argument(
+    "--rare_intron",
+    dest="rare_intron",
+    help=(
+        "Minimum intron support relative to the strongest competing junction in "
+        "the --intron_wobble neighbourhood. With the default 0.05, a candidate "
+        "must reach at least 5%% of the strongest nearby junction's read support. "
+        "Default: 0.05."
+    ),
+    type=float,
+    default=0.05,
+    metavar="[float]",
+)
+features.add_argument(
+    "-f", "--force_consensus",
+    dest="force_consensus",
+    help=(
+        "Require consensus splice-site pairs (GT-AG, GC-AG or AT-AC, including "
+        "the corresponding reverse-strand combinations) for intron acceptance. "
+        "When disabled, splice-site motif status is still annotated but is not "
+        "used as a hard exclusion criterion. Pass True or False. Default: False."
+    ),
+    type=str2bool,
+    default=False,
+    metavar="[bool]",
+)
+
+reconstruction = parser.add_argument_group("transcript-model support")
+reconstruction.add_argument(
+    "--mintr_count",
+    dest="mintr_count",
+    help=(
+        "Minimum number of compatible reads required to report a reconstructed "
+        "transcript isoform. Default: 1."
+    ),
+    type=int,
+    default=1,
+    metavar="[integer]",
+)
+
+fusion = parser.add_argument_group("split-alignment and fusion detection")
+fusion.add_argument(
+    "--max_split_query_overlap",
+    dest="max_split_query_overlap",
+    help=(
+        "Maximum query-coordinate overlap allowed between retained split "
+        "alignment segments from the same read. More strongly overlapping "
+        "lower-priority records are treated as alternative mappings and "
+        "collapsed. Default: 15 nt."
+    ),
+    type=int,
+    metavar="[integer]",
+    default=15,
+)
+fusion.add_argument(
+    "--no_fusion_detection",
+    dest="no_fusion_detection",
+    help=(
+        "Disable split-alignment structural fusion-event detection and fusion "
+        "transcript reconstruction. Fusion analysis is enabled by default."
+    ),
+    action="store_true",
+    default=False,
+)
+fusion.add_argument(
+    "--fusion_wobble",
+    dest="fusion_wobble",
+    help=(
+        "Maximum breakpoint-coordinate difference used to cluster read-level "
+        "observations for the same reference-sequence pair into one fusion "
+        "event. Both breakpoint coordinates must satisfy the tolerance. "
+        "Default: 50 nt."
+    ),
+    type=int,
+    default=50,
+    metavar="[integer]",
+)
+fusion.add_argument(
+    "--fusion_min_reads",
+    dest="fusion_min_reads",
+    help=(
+        "Minimum number of distinct reads supporting a structural fusion event. "
+        "Default: 1 distinct read."
+    ),
+    type=int,
+    default=1,
+    metavar="[integer]",
+)
+fusion.add_argument(
+    "--fusion_max_query_gap",
+    dest="fusion_max_query_gap",
+    help=(
+        "Maximum unaligned query-space gap allowed between adjacent retained "
+        "split segments in a structural fusion candidate. Default: 20 nt."
+    ),
+    type=int,
+    default=20,
+    metavar="[integer]",
+)
+fusion.add_argument(
+    "--fusion_local_distance",
+    dest="fusion_local_distance",
+    help=(
+        "Distance used only to label same-contig collinear split junctions as "
+        "local versus distant. This annotation threshold does not filter fusion "
+        "candidates. Default: 100000 nt."
+    ),
+    type=int,
+    default=100000,
+    metavar="[integer]",
+)
+fusion.add_argument(
+    "--fusion_allow_internal_adapters",
+    dest="fusion_allow_internal_adapters",
+    help=(
+        "Permit internal adapter evidence in the strict adapter-supported fusion "
+        "validation output. By default this evidence marks the molecule as a "
+        "likely concatenated library product in that strict validation layer."
+    ),
+    action="store_true",
+    default=False,
+)
 
 args = parser.parse_args()
 
+if args.dRNA and args.pacbio:
+    parser.error("--dRNA and --pacbio are mutually exclusive library modes.")
 Samprocessor.Samprocessor(args)
 
 args.coverage_file = args.prefix + "_out_minuscov.tsv"
@@ -343,8 +699,11 @@ args.feature = "tss"
 args.output_gff = False
 Gff_creator.Gff_creator(args)
 
-args.feature = "tes"
+# Preserve the original LoRTIA workflow: an optional Poisson significance
+# filter is applied to TSSs only. TESs still use minimum count, coverage ratio
+# and local-maximum/wobble qualification, but no Poisson filtering.
 args.significance = False
+args.feature = "tes"
 args.output_gff = False
 Gff_creator.Gff_creator(args)
 
@@ -356,3 +715,16 @@ args.in_bam = args.prefix + "_stranded_only.bam"
 args.gff_prefix = args.prefix
 args.output_prefix = args.prefix + "_tr"
 Transcript_Annotator.annotate_tr(args)
+
+# Conventional transcript reconstruction and fusion reconstruction are
+# deliberately isolated. The linear caller uses only the legacy-compatible
+# strand-resolved BAM. Fusion reconstruction uses a separate split-aware BAM
+# generated from a second pass over the untouched name-sorted alignments.
+if not args.no_fusion_detection:
+    # Fusion reconstruction consumes the isolated split-aware BAM created in
+    # Samprocessor's second pass. Conventional TSS/TES/intron/transcript
+    # calling never reads this BAM.
+    args.in_bam = getattr(args, "fusion_bam", None)
+    if not args.in_bam:
+        raise RuntimeError("Fusion detection requested but fusion BAM was not created.")
+    Fusion_Annotator.annotate_fusions(args)

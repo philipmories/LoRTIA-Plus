@@ -113,10 +113,14 @@ def read_introns_fast(read, introns, args, contig, strand, intron_index):
 def shifted_tss_match(tss_index, read, contig, strand, tss_pos, args):
     """
     dRNA TSS SNAP:
-    1) try shifted position (strand-aware) within wobble
-    2) if not found -> fallback to raw position
+    1) optionally try a user-requested shifted position (strand-aware)
+    2) if no shifted match is found -> use the raw position
+
+    No implicit shift is applied.  This is important for adapterless PacBio
+    reads, for which the dRNA-style no-5'-adapter path is used without an ONT
+    dRNA-specific systematic 5' correction.
     """
-    shift = int(args.drna_tss_shift)
+    shift = int(getattr(args, "drna_tss_shift", 0))
     if shift <= 0:
         return read_ends_indexed(tss_index, read, contig, strand, tss_pos, args, "tss")
 
@@ -172,7 +176,7 @@ def bam_iterator(bam, tr_dict, tss_index, tes_index, intron_index, outbam, args)
         # --- TSS ---
         # non-dRNA: keep original gating
         # dRNA (--drna): always attempt TSS matching with shift+fallback
-        if args.drna:
+        if bool(getattr(args, "dRNA", getattr(args, "drna", False))):
             read, tss_found = shifted_tss_match(tss_index, read, contig, strand, tss_pos, args)
         else:
             if (
@@ -236,66 +240,102 @@ def bam_iterator(bam, tr_dict, tss_index, tes_index, intron_index, outbam, args)
 
 def create_gff(tr_dict, tr_gff, args):
     """
-    Pandas output to GFF3 + TSV.
+    Write transcript models to GFF3 + TSV using the legacy LoRTIA layout.
+
+    Each transcript receives its own exon records, even when an exon interval
+    is shared by several isoforms.  This preserves the original LoRTIA GFF3
+    representation and keeps downstream tools that expect one Parent per exon
+    fully backward compatible.
     """
-    c = 1
-    PAR = ";Parent="
-    ID = "ID="
-    TRID = ";transcript_id="
-    x = 1
-    exon = "exon" + str(x)
+    records = []
+    transcript_index = 1
+    exon_index = 1
+
     for key, value in tr_dict.items():
         if value >= args.mintr_count:
-            tr = "tr" + str(c)
+            tr = "tr" + str(transcript_index)
+
             if len(key) == 4:
                 contig, strand, start, end = key
-                l = len(tr_gff)
-                if strand == "+":
-                    tr_gff.loc[l] = [contig, "LoRTIA", "mRNA", start, end, value, strand, ".", ID + tr + TRID + tr]
-                    tr_gff.loc[l+1] = [contig, "LoRTIA", "exon", start, end, value, strand, ".", ID + exon + PAR + tr + TRID + tr]
-                else:
-                    tr_gff.loc[l] = [contig, "LoRTIA", "mRNA", end, start, value, strand, ".", ID + tr + TRID + tr]
-                    tr_gff.loc[l+1] = [contig, "LoRTIA", "exon", end, start, value, strand, ".", ID + exon + PAR + tr + TRID + tr]
+                transcript_exons = [(start, end)]
+
             elif len(key) == 5:
                 contig, strand, start, intron, end = key
-                l = len(tr_gff)
-                intron = literal_eval(intron)
+                if isinstance(intron, str):
+                    intron = literal_eval(intron)
+                intron = tuple(intron)
+
+                if len(intron) < 2 or len(intron) % 2 != 0:
+                    raise ValueError(
+                        "Malformed intron chain for "
+                        f"{contig}:{start}-{end}({strand}): {intron}"
+                    )
+
                 if strand == "+":
-                    tr_gff.loc[l] = [contig, "LoRTIA", "mRNA", start, end, value, strand, ".", ID + tr + TRID + tr]
-                    tr_gff.loc[l+1] = [contig, "LoRTIA", "exon", start, intron[0], value, strand, ".", ID + exon + PAR + tr + TRID + tr]
-                    x += 1
-                    exon = "id" + str(x)
-                    if len(intron) > 2:
-                        for i in range(1, len(intron)-1)[::2]:
-                            l = len(tr_gff)
-                            tr_gff.loc[l] = [contig, "LoRTIA", "exon", intron[i], intron[i+1], value, strand, ".", ID + exon + PAR + tr + TRID + tr]
-                            x += 1
-                            exon = "id" + str(x)
-                    l = len(tr_gff)
-                    tr_gff.loc[l] = [contig, "LoRTIA", "exon", intron[-1], end, value, strand, ".", ID + exon + PAR + tr + TRID + tr]
-                    x += 1
-                    exon = "id" + str(x)
+                    transcript_exons = [(start, intron[0])]
+                    transcript_exons.extend(
+                        (intron[i], intron[i + 1])
+                        for i in range(1, len(intron) - 1, 2)
+                    )
+                    transcript_exons.append((intron[-1], end))
                 else:
-                    tr_gff.loc[l] = [contig, "LoRTIA", "mRNA", end, start, value, strand, ".", ID + tr + TRID + tr]
-                    tr_gff.loc[l+1] = [contig, "LoRTIA", "exon", end, intron[0], value, strand, ".", ID + exon + PAR + tr + TRID + tr]
-                    x += 1
-                    exon = "id" + str(x)
-                    if len(intron) > 2:
-                        for i in range(1, len(intron)-1)[::2]:
-                            l = len(tr_gff)
-                            tr_gff.loc[l] = [contig, "LoRTIA", "exon", intron[i], intron[i+1], value, strand, ".", ID + exon + PAR + tr + TRID + tr]
-                            x += 1
-                            exon = "id" + str(x)
-                    l = len(tr_gff)
-                    tr_gff.loc[l] = [contig, "LoRTIA", "exon", intron[-1], start, value, strand, ".", ID + exon + PAR + tr + TRID + tr]
-                    x += 1
-                    exon = "id" + str(x)
+                    transcript_exons = [(end, intron[0])]
+                    transcript_exons.extend(
+                        (intron[i], intron[i + 1])
+                        for i in range(1, len(intron) - 1, 2)
+                    )
+                    transcript_exons.append((intron[-1], start))
+
+            else:
+                raise ValueError(f"Unsupported transcript key: {key}")
+
+            mrna_start, mrna_end = sorted((int(start), int(end)))
+            records.append(
+                [
+                    contig,
+                    "LoRTIA",
+                    "mRNA",
+                    mrna_start,
+                    mrna_end,
+                    value,
+                    strand,
+                    ".",
+                    f"ID={tr};transcript_id={tr}",
+                ]
+            )
+
+            # Legacy LoRTIA behavior: do NOT collapse exons shared by different
+            # transcript models.  Every transcript gets its own exon rows and
+            # each exon keeps that transcript's support count.
+            seen_in_transcript = set()
+            for exon_start, exon_end in transcript_exons:
+                exon_start, exon_end = sorted((int(exon_start), int(exon_end)))
+                exon_key = (exon_start, exon_end)
+                if exon_key in seen_in_transcript:
+                    continue
+                seen_in_transcript.add(exon_key)
+
+                records.append(
+                    [
+                        contig,
+                        "LoRTIA",
+                        "exon",
+                        exon_start,
+                        exon_end,
+                        value,
+                        strand,
+                        ".",
+                        f"ID=id{exon_index};Parent={tr};transcript_id={tr}",
+                    ]
+                )
+                exon_index += 1
 
             tr_dict[key] = (tr, value)
-            c += 1
+            transcript_index += 1
         else:
             tr_dict[key] = ("not_qualified", value)
 
+    tr_gff = pd.DataFrame(records, columns=tr_gff.columns)
     tr_gff = tr_gff.sort_values(by=["contig", "start", "end"])
     tr_gff.to_csv(args.output_prefix + ".gff3", sep="\t", index=False, header=False)
     tr_tsv = pd.DataFrame.from_dict(tr_dict, orient="index")
@@ -367,8 +407,8 @@ def parsing():
     parser.add_argument("--drna", action="store_true",
                         help="Enable dRNA-specific TSS handling: always attempt TSS, "
                              "try shifted match first then fallback to raw.")
-    parser.add_argument("--drna-tss-shift", dest="drna_tss_shift", type=int, default=30,
-                        help="dRNA TSS shift in nt (strand-aware) used in shifted match. Default 30. Set 0 to disable.")
+    parser.add_argument("--drna-tss-shift", dest="drna_tss_shift", type=int, default=0,
+                        help="Optional dRNA/adapterless TSS shift in nt (strand-aware). Default 0 (disabled).")
 
     return parser.parse_args()
 
