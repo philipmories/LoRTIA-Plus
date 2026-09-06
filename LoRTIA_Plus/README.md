@@ -1,7 +1,7 @@
 # LoRTIA Plus
 
 <p align="center">
-  <img src="LoRTIA_Plus/LoRTIA.png" alt="LoRTIA" width="500">
+  <img src="LoRTIA.png" alt="LoRTIA" width="500">
 </p>
 
 **Chemistry-agnostic, feature-first long-read transcriptome annotation**
