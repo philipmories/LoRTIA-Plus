@@ -1,0 +1,17 @@
+# LoRTIA Plus v1.0.0
+# Pinned Python runtime dependencies for pip-based environments.
+#
+# External command-line dependencies are intentionally not listed here because
+# pip does not install them:
+#   samtools 1.20
+#   GNU awk 5.3.1
+#
+# For the complete reproducible environment, use:
+#   conda env create -f environment.yml
+
+numpy==1.26.4
+pandas==2.2.3
+polars==1.8.2
+pysam==0.22.1
+scipy==1.14.1
+biopython==1.88
