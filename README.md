@@ -41,6 +41,7 @@ has been retained.
 ## Contents
 
 - [Overview](#overview)
+- [What is new in LoRTIA Plus?](#what-is-new-in-lortia-plus)
 - [Workflow](#workflow)
 - [Installation](#installation)
 - [Installation verification](#installation-verification)
@@ -120,6 +121,72 @@ alignment segments originating from the same read in query-coordinate space.
   evaluates the true 3′ terminus without requiring 5′ adapter detection.
 - **Fusion-event support.** Query-space split alignments can be evaluated as
   candidate structural fusion events.
+
+---
+## What is new in LoRTIA Plus?
+
+LoRTIA Plus extends the original LoRTIA software with several major
+implementation and functionality updates.
+
+### Polars-based transcript reconstruction
+
+Transcript-processing and reconstruction steps have been modernized using
+**Polars-based dataframe processing**. This reduces dataframe-processing
+overhead and improves the performance and scalability of transcript
+reconstruction, particularly for large long-read RNA-seq datasets.
+
+### Modernized adapter-alignment backend
+
+The previous `Bio.pairwise2`-based adapter-alignment implementation has been
+replaced with `Bio.Align.PairwiseAligner`.
+
+This removes dependence on the deprecated `Bio.pairwise2` interface and uses a
+maintained alignment backend for terminal adapter and poly(A)-associated
+sequence recognition.
+
+### Chemistry-specific processing modes
+
+LoRTIA Plus introduces library- and chemistry-specific processing modes so that
+terminal-sequence recognition and strand assignment can be adapted to the
+sequence information retained by different long-read RNA-seq protocols.
+
+The current workflow supports:
+
+- ONT cDNA / direct-cDNA;
+- ONT CapTrap;
+- PacBio cDNA / Iso-Seq with retained 5′ primer;
+- PacBio CapTrap;
+- ONT direct RNA through `--dRNA`;
+- full-length PacBio cDNA after 5′ primer removal through `--pacbio`, provided
+  that detectable terminal poly(A)-associated sequence is retained.
+
+In `--dRNA` mode, LoRTIA Plus does not require 5′ adapter detection and uses
+mapper-derived strand information. In `--pacbio` mode, both read ends are
+searched for the configured 3′ signal; a single accepted 3′ call determines
+orientation and the opposite end is treated as the 5′ end.
+
+### Integrated fusion-event analysis
+
+LoRTIA Plus includes an integrated fusion-analysis workflow through
+`Fusion_Annotator.py`.
+
+Primary and supplementary alignment segments originating from the same read
+are evaluated together in query-coordinate space. Candidate split-read chains
+are assessed using configurable thresholds for query overlap, unaligned query
+gap, breakpoint clustering tolerance, and minimum distinct-read support.
+
+The current default fusion settings are:
+
+```text
+maximum split-query overlap: 15 nt
+maximum query gap:           20 nt
+breakpoint wobble:           50 nt
+minimum supporting reads:     1
+```
+
+The fusion workflow can report structural fusion candidates and, when
+compatible transcript-boundary, intron, and orientation information is
+available, reconstruct complete fusion-transcript models.
 
 ---
 
