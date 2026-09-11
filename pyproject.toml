@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lortia-plus"
-version = "1.0.0"
+version = "1.0.1"
 description = "LoRTIA Plus: a feature-first long-read transcriptome annotation workflow"
 readme = "README.md"
 requires-python = ">=3.10,<3.11"
